@@ -1,55 +1,525 @@
 package com.practice.rx;
 
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.TextView;
 
 import com.practice.util.DebugUtil;
+import com.practice.util.HttpUtil;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.Exchanger;
 import java.util.concurrent.TimeUnit;
 
+import javax.security.auth.login.LoginException;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
-import rx.Subscription;
+import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action0;
+import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
-import rx.subscriptions.CompositeSubscription;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
+    TextView tv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build());
+            StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().detectAll().penaltyLog().build());
+        }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        rxrun10();
+        tv = (TextView) findViewById(R.id.tv);
+        rxrun26();
     }
 
-    private void rxrun10(){
-      Observable.interval(1,TimeUnit.SECONDS).filter(aLong -> aLong%3==0).subscribe(new Subscriber<Long>() {
-          @Override
-          public void onCompleted() {
-              Log.e(TAG, "onCompleted: " );
-          }
+    private void rxrun26() {
+        HttpUtil.asynGetRequest("http://sw.bos.baidu.com/sw-search-sp/software/13d93a08a2990/ChromeStandalone_55.0.2883.87_Setup.exe", new HashMap(), new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, "onFailure: " + Log.getStackTraceString(e));
+            }
 
-          @Override
-          public void onError(Throwable e) {
-              Log.e(TAG, "onError: "+e.getMessage() );
-          }
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                ResponseBody responseBody = response.body();
+                long contentLength = responseBody.contentLength();
+                Log.e(TAG, "Content-Length= " + contentLength / 1024 / 1024 + "MB");
+                float downloadedSize = 0;
+                InputStream in = responseBody.byteStream();
+                byte[] buffer = new byte[1024];
+                int readSize = 0;
+                String fileName = "ChromeStandalone_55.0.2883.87_Setup.exe";
+                File file = new File(Environment.getExternalStorageDirectory() + "/" + fileName);
+                file.delete();
+                file.createNewFile();
+                FileOutputStream fos = new FileOutputStream(file, true);
+                new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        call.cancel();
+                    }
+                }.start();
+                float downloadedPercentage = 0;
+                try {
+                    while ((readSize = in.read(buffer)) != -1) {
+                        fos.write(buffer, 0, readSize);
+                        downloadedSize += readSize;
+                        downloadedPercentage = downloadedSize * 100 / contentLength;
+                        Log.e(TAG, "download percentage: " + downloadedPercentage + "%");
+                    }
+                    Log.e(TAG, "download completed!!! ");
+                } catch (Exception e) {
+                    Log.e(TAG, "download error:" + Log.getStackTraceString(e));
+                    file.delete();
+                } finally {
+                    try {
+                        fos.flush();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        fos.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        responseBody.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                }
+            }
+        });
 
-          @Override
-          public void onNext(Long aLong) {
-              Log.e(TAG, "onNext: "+aLong );
-          }
-      });
 
+    }
+
+
+    private void rxrun25() {
+        Observable.create(subscriber -> {
+            try {
+                for (int i = 0; i < 1000; ++i) {
+                    Thread.sleep(100);
+                    subscriber.onNext("item: " + i);
+                    Log.e(TAG, "rxrun25: " + i);
+                }
+                subscriber.onCompleted();
+            } catch (Exception e) {
+                subscriber.onError(e);
+            }
+        })
+                .subscribeOn(Schedulers.newThread())
+                .onBackpressureBuffer(10)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        tv.setText(Log.getStackTraceString(e));
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+                        Log.e(TAG, "onNext: " + o);
+                        tv.setText(o.toString());
+
+                    }
+                });
+    }
+
+
+    private void rxrun24() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        observable.startWith(-1l, -1l, -1l, -1l).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+
+
+    }
+
+    private void rxrun23() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        Observable.combineLatest(observable.skip(2).sample(2, TimeUnit.SECONDS), observable.sample(3, TimeUnit.SECONDS), (aLong, aLong2) -> "<" + aLong + "," + aLong2 + ">").subscribe(new Subscriber<String>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(String s) {
+                Log.e(TAG, "onNext: " + s);
+            }
+        });
+
+    }
+
+    private void rxrun22() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        observable.join(observable.sample(2, TimeUnit.SECONDS), aLong -> Observable.timer(2, TimeUnit.SECONDS), aLong -> Observable.timer(2, TimeUnit.SECONDS), (aLong, aLong2) -> aLong.toString() + aLong2.toString()).subscribe(new Subscriber<String>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e.getMessage());
+            }
+
+            @Override
+            public void onNext(String s) {
+                Log.e(TAG, "onNext: " + s.toString());
+            }
+        });
+
+    }
+
+
+    private void rxrun21() {
+        Observable<Long> observable = Observable.interval(10, TimeUnit.MILLISECONDS).onBackpressureBuffer();
+        Observable.zip(observable.map(aLong -> aLong * aLong), observable.sample(1, TimeUnit.SECONDS), (aLong, aLong2) -> "{" + aLong + "," + aLong2 + "}").subscribe(new Subscriber<String>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(String s) {
+                Log.e(TAG, "onNext: " + s);
+            }
+        });
+
+    }
+
+    private void rxrun20() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        Observable<Long> mergedObservable = Observable.merge(observable, observable.sample(2, TimeUnit.SECONDS).map(aLong -> aLong * 10));
+        mergedObservable.subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+    }
+
+    private void rxrun19() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        observable.cast(String.class).subscribe(new Subscriber<String>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(String s) {
+                Log.e(TAG, "onNext: " + s);
+            }
+        });
+    }
+
+    private void rxrun18() {
+        Observable<List<Long>> observable = Observable.interval(1, TimeUnit.SECONDS).buffer(3, 4);
+        observable.subscribe(new Subscriber<List<Long>>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(List<Long> longs) {
+                Log.e(TAG, "onNext: " + longs.toString());
+            }
+        });
+    }
+
+    private void rxrun17() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        observable.scan((aLong, aLong2) -> aLong + aLong2).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+    }
+
+
+    private void rxrun16() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        observable.map(aLong -> aLong * aLong).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e);
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+    }
+
+
+    private void rxrun15() {
+        Observable<Long> observable = Observable.interval(3, TimeUnit.SECONDS);
+        observable.timeout(2, TimeUnit.SECONDS).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted1: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError1:" + e.getMessage());
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext1: " + aLong);
+            }
+        });
+        observable.timeout(4, TimeUnit.SECONDS).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted2: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError2: " + e.getMessage());
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext2: " + aLong);
+            }
+        });
+    }
+
+    private void rxrun14() {
+        Observable<Long> observable = Observable.interval(100, TimeUnit.MILLISECONDS);
+        observable.sample(1, TimeUnit.SECONDS).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted1: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError1: ");
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext1: " + aLong);
+            }
+        });
+        observable.sample(2, TimeUnit.SECONDS).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted2: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError2: " + e.getMessage());
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext2: " + aLong);
+            }
+        });
+    }
+
+
+    private void rxrun13() {
+        Observable.interval(1, TimeUnit.SECONDS).elementAt(3).subscribe(new Subscriber<Long>() {
+
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: TIME_OUT!!!");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: ");
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+
+
+    }
+
+    private void rxrun12() {
+        Observable.interval(1, TimeUnit.SECONDS).skip(3).subscribe(new Subscriber<Long>() {
+
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: TIME_OUT!!!");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: ");
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+    }
+
+
+    private void rxrun11() {
+        Observable.interval(1, TimeUnit.SECONDS).take(20).subscribe(new Subscriber<Long>() {
+
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: TIME_OUT!!!");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: ");
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext: " + aLong);
+            }
+        });
+    }
+
+
+    private void rxrun10() {
+        Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
+        observable.filter(aLong -> aLong % 3 == 0).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e.getMessage());
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext3: " + aLong);
+            }
+        });
+        observable.filter(aLong -> aLong % 2 == 0).subscribe(new Subscriber<Long>() {
+            @Override
+            public void onCompleted() {
+                Log.e(TAG, "onCompleted: ");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.e(TAG, "onError: " + e.getMessage());
+            }
+
+            @Override
+            public void onNext(Long aLong) {
+                Log.e(TAG, "onNext2: " + aLong);
+            }
+        });
     }
 
     private void rxrun9() {
         Observable.interval(1, TimeUnit.SECONDS).subscribe(new Subscriber<Long>() {
-            long TIME_OUT=20;
+            long TIME_OUT = 20;
+
             @Override
             public void onCompleted() {
                 Log.e(TAG, "onCompleted: TIME_OUT!!!\nSTOP SUBSCRIBE");
@@ -58,13 +528,13 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onError(Throwable e) {
-                Log.e(TAG, "onError: " );
+                Log.e(TAG, "onError: ");
             }
 
             @Override
             public void onNext(Long aLong) {
-                Log.e(TAG, "onNext: "+aLong );
-                if(aLong>=TIME_OUT){
+                Log.e(TAG, "onNext: " + aLong);
+                if (aLong >= TIME_OUT) {
                     onCompleted();
                 }
             }
@@ -109,8 +579,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         );
-
-
     }
 
     private void rxrun7() {
