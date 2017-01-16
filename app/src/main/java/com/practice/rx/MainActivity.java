@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 ResponseBody responseBody = response.body();
                 long contentLength = responseBody.contentLength();
-                Log.e(TAG, "Content-Length= " + contentLength / 1024 / 1024 + "MB");
+                Log.e(TAG, "Content-Length= " + (float)contentLength / 1024 / 1024 + "MB");
                 float downloadedSize = 0;
                 InputStream in = responseBody.byteStream();
                 byte[] buffer = new byte[1024];
