@@ -10,12 +10,13 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.logging.HttpLoggingInterceptor;
 
 /**
  * Created by gaofeng on 2016-07-26.
  */
 public class HttpUtil {
-    private static OkHttpClient client = new OkHttpClient.Builder().connectTimeout(4, TimeUnit.SECONDS).readTimeout(4, TimeUnit.SECONDS).writeTimeout(4, TimeUnit.SECONDS).build();
+    private static OkHttpClient client = new OkHttpClient.Builder().addInterceptor(new HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.HEADERS)).connectTimeout(4,TimeUnit.SECONDS).readTimeout(4,TimeUnit.SECONDS).writeTimeout(4,TimeUnit.SECONDS).build();
 
     public static OkHttpClient getClient() {
         return client;

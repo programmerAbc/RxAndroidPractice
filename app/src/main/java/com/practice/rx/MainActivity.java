@@ -16,15 +16,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.Exchanger;
 import java.util.concurrent.TimeUnit;
-
-import javax.security.auth.login.LoginException;
 
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import retrofit2.Retrofit;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
@@ -46,7 +44,86 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         tv = (TextView) findViewById(R.id.tv);
-        rxrun26();
+        rxrun28();
+
+    }
+
+    private void rxrun28() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://www.example.com")
+                .client(HttpUtil.getClient())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofitService.downloadFile("http://sw.bos.baidu.com/sw-search-sp/software/13d93a08a2990/ChromeStandalone_55.0.2883.87_Setup.exe").enqueue(new retrofit2.Callback<ResponseBody>() {
+            @Override
+            public void onResponse(retrofit2.Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
+                FileOutputStream fos = null;
+                ResponseBody responseBody = response.body();
+                long contentLength = responseBody.contentLength();
+                Log.e(TAG, "Content-Length= " + (float) contentLength / 1024 / 1024 + "MB");
+                float downloadedSize = 0;
+                InputStream is = responseBody.byteStream();
+                byte[] buffer = new byte[1024];
+                int readSize = 0;
+                String fileName = "ChromeStandalone_55.0.2883.87_Setup.exe";
+                File file = new File(Environment.getExternalStorageDirectory() + "/" + fileName);
+                file.delete();
+                float downloadedPercentage = 0;
+                try {
+                    file.createNewFile();
+                    fos = new FileOutputStream(file, true);
+                    while ((readSize = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, readSize);
+                        downloadedSize += readSize;
+                        downloadedPercentage = downloadedSize * 100 / contentLength;
+                        Log.e(TAG, "download percentage: " + downloadedPercentage + "%");
+                    }
+                    Log.e(TAG, "download completed!!! ");
+                } catch (Exception e) {
+                    Log.e(TAG, "download error:" + Log.getStackTraceString(e));
+                    file.delete();
+                } finally {
+                    try {
+                        fos.flush();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        fos.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call<ResponseBody> call, Throwable t) {
+                Log.e(TAG, "onFailure: " + Log.getStackTraceString(t));
+            }
+        });
+
+
+    }
+
+    private void rxrun27() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://api.douban.com/v2/")
+                .client(HttpUtil.getClient())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofit2.Call<ResponseBody> call = retrofitService.getSearchBooks("Android", "", 0, 3);
+        try {
+            String respStr = call.execute().body().string();
+            Log.e(TAG, "Response Str: " + respStr);
+        } catch (IOException e) {
+            Log.e(TAG, "rxrun27: " + Log.getStackTraceString(e));
+        }
+
     }
 
     private void rxrun26() {
@@ -60,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 ResponseBody responseBody = response.body();
                 long contentLength = responseBody.contentLength();
-                Log.e(TAG, "Content-Length= " + (float)contentLength / 1024 / 1024 + "MB");
+                Log.e(TAG, "Content-Length= " + (float) contentLength / 1024 / 1024 + "MB");
                 float downloadedSize = 0;
                 InputStream in = responseBody.byteStream();
                 byte[] buffer = new byte[1024];
@@ -101,6 +178,11 @@ public class MainActivity extends AppCompatActivity {
                     }
                     try {
                         fos.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        in.close();
                     } catch (Exception e) {
                         Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
                     }
