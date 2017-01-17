@@ -48,6 +48,14 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    private void rxrun29(){
+
+
+
+
+    }
+
+
     private void rxrun28() {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("http://www.example.com")
