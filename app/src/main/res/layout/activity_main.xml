@@ -10,17 +10,13 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.practice.rx.MainActivity">
 
-    <TextView
-        android:id="@+id/tv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!" />
-
-    <Button
-        android:text="Button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerVertical="true"
-        android:layout_centerHorizontal="true"
-        android:id="@+id/button" />
+    <com.practice.rx.MyTextview
+        android:background="@drawable/downloadprogress_bg"
+        android:id="@+id/myTv"
+        android:layout_width="150dp"
+        android:layout_height="70dp"
+        android:layout_centerInParent="true"
+        android:text="0"
+        android:textSize="25sp"
+        android:textStyle="bold" />
 </RelativeLayout>

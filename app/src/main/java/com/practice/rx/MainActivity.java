@@ -36,27 +36,26 @@ import rx.subjects.PublishSubject;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
-    TextView tv;
+    MyTextview myTv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        tv = (TextView) findViewById(R.id.tv);
+        myTv = (MyTextview) findViewById(R.id.myTv);
         rxrun32();
-
     }
 
     private void rxrun32() {
-        PublishSubject<Long> publishSubject = PublishSubject.create();
+        PublishSubject<Float> publishSubject = PublishSubject.create();
         publishSubject.distinctUntilChanged()
                 .subscribeOn(Schedulers.io())
                 .onBackpressureBuffer()
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Subscriber<Long>() {
+                .subscribe(new Subscriber<Float>() {
                     @Override
                     public void onCompleted() {
-                        tv.setText("DOWNLOAD COMPLETED!");
+                        myTv.setText("\u2713");
                     }
 
                     @Override
@@ -65,8 +64,8 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     @Override
-                    public void onNext(Long aLong) {
-                        tv.setText("DOWNLOADING\t" + aLong + "%");
+                    public void onNext(Float aFloat) {
+                        myTv.setProgress(aFloat);
                     }
                 });
 
@@ -96,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
                         FileOutputStream fos = null;
                         long contentLength = responseBody.contentLength();
                         Log.e(TAG, "Content-Length= " + (float) contentLength / 1024 / 1024 + "MB");
-                        long downloadedSize = 0;
+                        float downloadedSize = 0;
                         InputStream is = responseBody.byteStream();
                         byte[] buffer = new byte[1024];
                         int readSize = 0;
@@ -110,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
                                 fos.write(buffer, 0, readSize);
                                 downloadedSize += readSize;
                                 //Log.e(TAG, "onResponse: " + downloadedSize * 100 / contentLength);
-                                publishSubject.onNext(downloadedSize * 100 / contentLength);
+                                publishSubject.onNext(downloadedSize / contentLength);
                             }
                             publishSubject.onCompleted();
                             //  Log.e(TAG, "download completed!!! ");
@@ -172,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
         retrofitService.downloadFile("http://sw.bos.baidu.com/sw-search-sp/software/13d93a08a2990/ChromeStandalone_55.0.2883.87_Setup.exe").enqueue(new retrofit2.Callback<ResponseBody>() {
             @Override
             public void onResponse(retrofit2.Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
-                tv.setText("START DOWNLOAD!!!");
+                myTv.setText("START DOWNLOAD!!!");
                 FileOutputStream fos = null;
                 ResponseBody responseBody = response.body();
                 long contentLength = responseBody.contentLength();
@@ -456,13 +455,13 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onError(Throwable e) {
-                        tv.setText(Log.getStackTraceString(e));
+                        myTv.setText(Log.getStackTraceString(e));
                     }
 
                     @Override
                     public void onNext(Object o) {
                         Log.e(TAG, "onNext: " + o);
-                        tv.setText(o.toString());
+                        myTv.setText(o.toString());
 
                     }
                 });
