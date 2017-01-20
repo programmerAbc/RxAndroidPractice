@@ -41,9 +41,75 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build());
+            StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().detectAll().penaltyLog().build());
+        }
         setContentView(R.layout.activity_main);
         myTv = (MyTextview) findViewById(R.id.myTv);
-        rxrun32();
+        rxrun33();
+    }
+
+    private void rxrun33() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://www.baidu.com")
+                .client(HttpUtil.getClient())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofitService.downloadFileWithResume("http://sw.bos.baidu.com/sw-search-sp/software/13d93a08a2990/ChromeStandalone_55.0.2883.87_Setup.exe", "bytes=10000-").enqueue(new retrofit2.Callback<ResponseBody>() {
+            @Override
+            public void onResponse(retrofit2.Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
+                FileOutputStream fos = null;
+                ResponseBody responseBody = response.body();
+                long contentLength = responseBody.contentLength();
+                Log.e(TAG, "Content-Length= " + (float) contentLength / 1024 / 1024 + "MB");
+                float downloadedSize = 0;
+                InputStream is = responseBody.byteStream();
+                byte[] buffer = new byte[1024];
+                int readSize = 0;
+                String fileName = "ChromeStandalone_55.0.2883.87_Setup.exe";
+                File file = new File(Environment.getExternalStorageDirectory() + "/" + fileName);
+                file.delete();
+                float downloadedPercentage = 0;
+                try {
+                    file.createNewFile();
+                    fos = new FileOutputStream(file, true);
+                    while ((readSize = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, readSize);
+                        downloadedSize += readSize;
+                        downloadedPercentage = downloadedSize * 100 / contentLength;
+                 //       Log.e(TAG, "download percentage: " + downloadedPercentage + "%");
+                    }
+                    Log.e(TAG, "download completed!!! ");
+                } catch (Exception e) {
+                    Log.e(TAG, "download error:" + Log.getStackTraceString(e));
+                    file.delete();
+                } finally {
+                    try {
+                        fos.flush();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        fos.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call<ResponseBody> call, Throwable t) {
+                Log.e(TAG, "onFailure: " + Log.getStackTraceString(t));
+            }
+        });
+
+
     }
 
     private void rxrun32() {
