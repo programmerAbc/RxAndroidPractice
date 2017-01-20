@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void rxrun32(){
+    private void rxrun32() {
         PublishSubject<Long> publishSubject = PublishSubject.create();
         publishSubject.distinctUntilChanged()
                 .subscribeOn(Schedulers.io())
@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onNext(Long aLong) {
-                        tv.setText("DOWNLOADING\t"+aLong+"%");
+                        tv.setText("DOWNLOADING\t" + aLong + "%");
                     }
                 });
 
@@ -139,9 +139,8 @@ public class MainActivity extends AppCompatActivity {
                 });
 
 
-
-
     }
+
     //这种下载实现好像有问题rxrun32的RxJava模式效果不错
     private void rxrun31() {
         PublishSubject<Long> publishSubject = PublishSubject.create();
@@ -195,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
                         publishSubject.onNext(downloadedSize * 100 / contentLength);
                     }
                     publishSubject.onCompleted();
-                  //  Log.e(TAG, "download completed!!! ");
+                    //  Log.e(TAG, "download completed!!! ");
                 } catch (Exception e) {
                     Log.e(TAG, "download error:" + Log.getStackTraceString(e));
                     publishSubject.onError(e);
@@ -228,7 +227,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     }
-
 
     private void rxrun30() {
         Retrofit retrofit = new Retrofit.Builder()
@@ -283,7 +281,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     }
-
 
     private void rxrun28() {
         Retrofit retrofit = new Retrofit.Builder()
@@ -435,7 +432,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-
     private void rxrun25() {
         Observable.create(subscriber -> {
             try {
@@ -471,7 +467,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
-
 
     private void rxrun24() {
         Observable<Long> observable = Observable.interval(1, TimeUnit.SECONDS);
