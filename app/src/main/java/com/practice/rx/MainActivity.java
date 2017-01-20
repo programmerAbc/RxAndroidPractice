@@ -7,6 +7,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.TextView;
 
+import com.practice.model.WeatherResponse;
 import com.practice.util.DebugUtil;
 import com.practice.util.HttpUtil;
 
@@ -23,6 +24,8 @@ import okhttp3.Callback;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
@@ -37,20 +40,246 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        if (BuildConfig.DEBUG) {
-            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().detectAll().penaltyLog().build());
-            StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().detectAll().penaltyLog().build());
-        }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         tv = (TextView) findViewById(R.id.tv);
-        rxrun28();
+        rxrun32();
 
     }
 
-    private void rxrun29(){
+    private void rxrun32(){
+        PublishSubject<Long> publishSubject = PublishSubject.create();
+        publishSubject.distinctUntilChanged()
+                .subscribeOn(Schedulers.io())
+                .onBackpressureBuffer()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Subscriber<Long>() {
+                    @Override
+                    public void onCompleted() {
+                        tv.setText("DOWNLOAD COMPLETED!");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.e(TAG, "onError: " + e);
+                    }
+
+                    @Override
+                    public void onNext(Long aLong) {
+                        tv.setText("DOWNLOADING\t"+aLong+"%");
+                    }
+                });
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://www.baidu.com")
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .client(HttpUtil.getClient())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofitService.downloadFileRx("http://sw.bos.baidu.com/sw-search-sp/software/13d93a08a2990/ChromeStandalone_55.0.2883.87_Setup.exe")
+                .observeOn(Schedulers.io())
+                .onBackpressureBuffer()
+                .subscribeOn(Schedulers.io())
+                .subscribe(new Subscriber<ResponseBody>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(ResponseBody responseBody) {
+                        FileOutputStream fos = null;
+                        long contentLength = responseBody.contentLength();
+                        Log.e(TAG, "Content-Length= " + (float) contentLength / 1024 / 1024 + "MB");
+                        long downloadedSize = 0;
+                        InputStream is = responseBody.byteStream();
+                        byte[] buffer = new byte[1024];
+                        int readSize = 0;
+                        String fileName = "ChromeStandalone_55.0.2883.87_Setup.exe";
+                        File file = new File(Environment.getExternalStorageDirectory() + "/" + fileName);
+                        file.delete();
+                        try {
+                            file.createNewFile();
+                            fos = new FileOutputStream(file, true);
+                            while ((readSize = is.read(buffer)) != -1) {
+                                fos.write(buffer, 0, readSize);
+                                downloadedSize += readSize;
+                                //Log.e(TAG, "onResponse: " + downloadedSize * 100 / contentLength);
+                                publishSubject.onNext(downloadedSize * 100 / contentLength);
+                            }
+                            publishSubject.onCompleted();
+                            //  Log.e(TAG, "download completed!!! ");
+                        } catch (Exception e) {
+                            Log.e(TAG, "download error:" + Log.getStackTraceString(e));
+                            publishSubject.onError(e);
+                            file.delete();
+                        } finally {
+                            try {
+                                fos.flush();
+                            } catch (Exception e) {
+                                Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                            }
+                            try {
+                                fos.close();
+                            } catch (Exception e) {
+                                Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                            }
+                            try {
+                                is.close();
+                            } catch (Exception e) {
+                                Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                            }
+                        }
+                    }
+                });
 
 
+
+
+    }
+    //这种下载实现好像有问题rxrun32的RxJava模式效果不错
+    private void rxrun31() {
+        PublishSubject<Long> publishSubject = PublishSubject.create();
+        publishSubject.distinctUntilChanged()
+                .subscribeOn(Schedulers.io())
+                .onBackpressureBuffer()
+                .observeOn(Schedulers.newThread())
+                .subscribe(new Subscriber<Long>() {
+                    @Override
+                    public void onCompleted() {
+                        Log.e(TAG, "downloaded");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.e(TAG, "onError: " + e);
+                    }
+
+                    @Override
+                    public void onNext(Long aLong) {
+                        Log.e(TAG, "downloading: " + aLong + "%");
+                    }
+                });
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://www.baidu.com")
+                .client(HttpUtil.getClient())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofitService.downloadFile("http://sw.bos.baidu.com/sw-search-sp/software/13d93a08a2990/ChromeStandalone_55.0.2883.87_Setup.exe").enqueue(new retrofit2.Callback<ResponseBody>() {
+            @Override
+            public void onResponse(retrofit2.Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
+                tv.setText("START DOWNLOAD!!!");
+                FileOutputStream fos = null;
+                ResponseBody responseBody = response.body();
+                long contentLength = responseBody.contentLength();
+                Log.e(TAG, "Content-Length= " + (float) contentLength / 1024 / 1024 + "MB");
+                long downloadedSize = 0;
+                InputStream is = responseBody.byteStream();
+                byte[] buffer = new byte[1024];
+                int readSize = 0;
+                String fileName = "ChromeStandalone_55.0.2883.87_Setup.exe";
+                File file = new File(Environment.getExternalStorageDirectory() + "/" + fileName);
+                file.delete();
+                try {
+                    file.createNewFile();
+                    fos = new FileOutputStream(file, true);
+                    while ((readSize = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, readSize);
+                        downloadedSize += readSize;
+                        Log.e(TAG, "onResponse: " + downloadedSize * 100 / contentLength);
+                        publishSubject.onNext(downloadedSize * 100 / contentLength);
+                    }
+                    publishSubject.onCompleted();
+                  //  Log.e(TAG, "download completed!!! ");
+                } catch (Exception e) {
+                    Log.e(TAG, "download error:" + Log.getStackTraceString(e));
+                    publishSubject.onError(e);
+                    file.delete();
+                } finally {
+                    try {
+                        fos.flush();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        fos.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onResponse: " + Log.getStackTraceString(e));
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call<ResponseBody> call, Throwable t) {
+                Log.e(TAG, "onFailure: " + Log.getStackTraceString(t));
+                publishSubject.onError(t);
+            }
+        });
+
+
+    }
+
+
+    private void rxrun30() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://www.weather.com.cn/")
+                .client(HttpUtil.getClient())
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofitService.getCurrentWeatherInfoRx("101010100")
+                .subscribeOn(Schedulers.io())
+                .onBackpressureBuffer()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        new Subscriber<WeatherResponse>() {
+                            @Override
+                            public void onCompleted() {
+                                Log.e(TAG, "onCompleted: ");
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                Log.e(TAG, "onError: " + e);
+                            }
+
+                            @Override
+                            public void onNext(WeatherResponse weatherResponse) {
+                                Log.e(TAG, "rxrun30: " + weatherResponse.getWeatherinfo().toString());
+                            }
+                        }
+                );
+    }
+
+    private void rxrun29() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://www.weather.com.cn/")
+                .client(HttpUtil.getClient())
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        RetrofitService retrofitService = retrofit.create(RetrofitService.class);
+        retrofitService.getCurrentWeatherInfo("101010100").enqueue(new retrofit2.Callback<WeatherResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<WeatherResponse> call, retrofit2.Response<WeatherResponse> response) {
+                Log.e(TAG, "onResponse: \n" + response.body().getWeatherinfo().toString());
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call<WeatherResponse> call, Throwable t) {
+                Log.e(TAG, "onFailure: " + t);
+            }
+        });
 
 
     }
@@ -58,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void rxrun28() {
         Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("http://www.example.com")
+                .baseUrl("https://www.baidu.com")
                 .client(HttpUtil.getClient())
                 .build();
         RetrofitService retrofitService = retrofit.create(RetrofitService.class);

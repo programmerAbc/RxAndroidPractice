@@ -145,5 +145,10 @@ public class WeatherResponse {
         public String getRain() {
             return this.rain;
         }
+
+        @Override
+        public String toString() {
+            return "city="+city+"\ncityid="+cityid+"\ntemp="+temp+"\nWD="+WD+"\nWS="+WS+"\nSD="+SD+"\nWSE="+WSE+"\ntime="+time+"\nisRadar="+isRadar+"\nRadar="+Radar+"\nnjd="+njd+"\nqy="+qy+"\nrain="+rain;
+        }
     }
 }
