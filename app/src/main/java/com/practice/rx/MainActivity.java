@@ -5,7 +5,6 @@ import android.os.Environment;
 import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.widget.TextView;
 
 import com.practice.model.WeatherResponse;
 import com.practice.util.DebugUtil;
