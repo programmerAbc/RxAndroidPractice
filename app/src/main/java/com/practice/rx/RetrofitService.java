@@ -1,12 +1,18 @@
 package com.practice.rx;
 
 
+import com.practice.model.FaceResponse;
 import com.practice.model.WeatherResponse;
 
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Header;
+import retrofit2.http.Multipart;
+import retrofit2.http.POST;
+import retrofit2.http.Part;
 import retrofit2.http.Path;
 import retrofit2.http.Query;
 import retrofit2.http.Streaming;
@@ -38,4 +44,13 @@ public interface RetrofitService {
     @Streaming
     @GET
     Call<ResponseBody> downloadFileWithResume(@Url String url, @Header("RANGE") String range);
+
+    @Multipart
+    @POST("identity/historical_selfie_verification")
+    Observable<FaceResponse> faceAlignment(
+            @Part("api_id") RequestBody apiId,
+            @Part("api_secret") RequestBody apiSeret,
+            @Part MultipartBody.Part file1,
+            @Part MultipartBody.Part file2
+    );
 }
