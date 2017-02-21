@@ -36,6 +36,7 @@ import okhttp3.ResponseBody;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
+import rx.BackpressureOverflow;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
@@ -85,12 +86,61 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void rxrunPoint() {
-        try {
-            rxrun34();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
+        rxrun35();
     }
+
+    private void rxrun35() {
+        Observable.create(subscriber -> {
+            try {
+                for (int i = 0; i < 1000; ++i) {
+                    Thread.sleep(10);
+                    Log.e(TAG, "src emit: " + i + ",on Thread:" + Thread.currentThread().getName());
+                    subscriber.onNext("item: " + i);
+                }
+                subscriber.onCompleted();
+            } catch (Exception e) {
+                subscriber.onError(e);
+            }
+        })
+                .subscribeOn(Schedulers.io())
+                .subscribeOn(Schedulers.newThread())
+                .onBackpressureBuffer(10, () -> {
+                    Log.e(TAG, "detect overflow on Thread:"+Thread.currentThread().getName());
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .observeOn(Schedulers.computation())
+                .map(o->{
+                    Log.e(TAG, "map on Thread: " +Thread.currentThread().getName() );
+                    return o;
+                })
+                .onBackpressureBuffer(10, () -> {
+                    Log.e(TAG, "[another buffer]detect overflow on Thread:"+Thread.currentThread().getName());
+                }, BackpressureOverflow.ON_OVERFLOW_DROP_OLDEST)
+                .observeOn(Schedulers.newThread())
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.e(TAG, "onError: " + Log.getStackTraceString(e));
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+                        Log.e(TAG, "subscriber receive:" + o + ",on Thread:" + Thread.currentThread().getName());
+                        try {
+                            Thread.sleep(20);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+
+
+    }
+
 
     private void rxrun34() throws MalformedURLException {
         File file1 = new File(Environment.getExternalStorageDirectory() + "/Download/1.jpg");
